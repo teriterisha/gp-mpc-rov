@@ -4,13 +4,13 @@ import numpy as np
 # 导入数据
 # 拷贝用：data/lemniscate/Tv_dis_with_ero/   data/lemniscate/Tv_dis_No_ero/  data/lemniscate/No_dis_No_ero  data/lemniscate/Con_dis_No_ero  
 # data/L  data/circle/r=2/  data/circle/r=2.5/  data/circle/r=3/
-input_file = 'data/circle/r=2/'
+input_file = 'data/circle/r=3/'
 all_data_PID = io.loadmat(input_file + 'PID.mat')
 all_data_Nominal = io.loadmat(input_file + 'Nominal.mat')
 all_data_OFF = io.loadmat(input_file + 'Offline-GP.mat')
 all_data_ON = io.loadmat(input_file + 'Online-GP.mat')
 
-input_file_2 = 'data/height/No_dis/0.25/'
+input_file_2 = 'data/height/No_dis/0.75/'
 Z_data_PID = io.loadmat(input_file_2 + 'PID.mat')
 Z_data_Nominal = io.loadmat(input_file_2 + 'Nominal.mat')
 Z_data_OFF = io.loadmat(input_file_2 + 'Offline-GP.mat')
@@ -49,10 +49,11 @@ ax.plot3D(real_Nominal[:, 0], real_Nominal[:, 1], realZ_Nominal[:, 0], c='c', li
 ax.plot3D(real_OFF[:, 0], real_OFF[:, 1], realZ_OFF[:, 0], c='y', linestyle = '-.', label = 'Offline-GP-MPC')
 ax.plot3D(real_ON[:, 0], real_ON[:, 1], realZ_ON[:, 0], c='g', linestyle = ':', label = 'Online-GP-MPC')
 ax.scatter3D(state_all_ref[:, 0], state_all_ref[:, 1], Z_ref[:, 0],s= 2, c='r', label = 'Reference')
-ax.set(xlim=[-2, 2], ylim=[0, 4], zlim=[0, 2.5])
-ax.set_xlabel("x position(m)", fontsize=fontsize)
-ax.set_ylabel("y position(m)", fontsize=fontsize)
-ax.set_zlabel("z position(m)", fontsize=fontsize)
+ax.set(xlim=[-3, 3], ylim=[0, 6], zlim=[0, 7.5])
+ax.tick_params(labelsize=fontsize)
+ax.set_xlabel("x position(m)", fontsize=fontsize, labelpad=10)
+ax.set_ylabel("y position(m)", fontsize=fontsize, labelpad=10)
+ax.set_zlabel("z position(m)", fontsize=fontsize, labelpad=10)
 ax.set_title("trajectory", fontsize=fontsize)
 ax.view_init(elev=19, azim=-69)
 plt.legend(loc='upper left', fontsize=fontsize)#绘制曲线图例，信息来自类型label
