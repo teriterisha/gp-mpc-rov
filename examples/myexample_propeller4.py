@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import time
 from scipy import io
 
-"""将推力细化到了推进器
+"""z轴案例
 """
 
 def get_MPC_solver(state_fun, Nx, Nu, N_predict, Q, Q_end, R):
@@ -49,24 +49,23 @@ def get_MPC_solver(state_fun, Nx, Nu, N_predict, Q, Q_end, R):
     return solver
 
 dt = .05                    # Sampling time
-Nx = 3                      # Number of states
-Nu = 4                      # Number of inputs
+Nx = 1                      # Number of states
+Nu = 1                      # Number of inputs
 R_n = np.eye(Nx) * 1e-6     # Covariance matrix of added noise
-R_n[2,2] *= 1e-3
 # Limits in the training data
-ulb = [-75.0, -75.0, -75.0, -75.0]      # input bound
-uub = [75.0, 75.0, 75.0, 75.0]        # input bound
-xlb = [-2.5, -0.5, -np.pi / 4]    # state bound
-xub = [2.5, 0.5, np.pi / 4]      # state bound
+ulb = [-150.0]      # input bound
+uub = [150.0]        # input bound
+xlb = [-1.0]    # state bound
+xub = [1.0]      # state bound
 
 N = 100          # Number of training data
-N_test = 20    # Number of test data
+N_test = 40    # Number of test data
 
 """生成训练集与测试集，通过GP类进行验证
 """
 noise_cov = np.eye(Nx) * 1e-3
-X, Y = my_generate_training_data(ode_error_propeller, N, Nu, Nx, uub, ulb, xub, xlb, noise_cov, noise=True)
-X_test, Y_test = my_generate_training_data(ode_error_propeller, N_test, Nu, Nx, uub, ulb, xub, xlb, noise_cov, noise=True)
+X, Y = my_generate_training_data(z_error, N, Nu, Nx, uub, ulb, xub, xlb, noise_cov, noise=True)
+X_test, Y_test = my_generate_training_data(z_error, N_test, Nu, Nx, uub, ulb, xub, xlb, noise_cov, noise=True)
 
 # np.save('X_test_propeller_1.npy',X_test)
 # np.save('Y_test_propeller_1.npy',Y_test)
@@ -74,16 +73,14 @@ X_test, Y_test = my_generate_training_data(ode_error_propeller, N_test, Nu, Nx, 
 # X_test = np.load("X_test_propeller_1.npy")
 # Y_test = np.load("Y_test_propeller_1.npy")
 
-# X_test = np.load("X_test_propeller_15.npy")
-# Y_test = np.load("Y_test_propeller_15.npy")
 gp = MYGP(X, Y, X_test, Y_test)
 
 """通过训练数据与名义模型得到矫正后模型的casadi表达式"""
-ode_nominal_ca = get_ode_ca(ode_nominal_propeller, Nx, Nu)
+ode_nominal_ca = get_ode_ca(z_nominal, Nx, Nu)
 my_gp_error_fun_ca = gp.get_mean_fun()
 my_gp_correct_fun_ca = merge_model(ode_nominal_ca, my_gp_error_fun_ca, Nx, Nu)
 """将得到的矫正后动力学模型拓展为运动学模型，这个例子中目前只涉及到了平面内两个自由度平动，所以位置量可以直接积分得到"""
-kine_fun_correct_pre_ca = dyna_2_kine_nominal(my_gp_correct_fun_ca, Nx, Nu)
+kine_fun_correct_pre_ca = dyna_2_kine(my_gp_correct_fun_ca, Nx, Nu)
 # error_fun = error_fun_test()
 # kine_fun_correct_ca = merge_kine_model(kine_fun_correct_pre_ca, error_fun, 6, 3, 2)
 """将矫正后的模型进行离散化，使用RK4方法，得到离散后的casadi表达式
@@ -91,17 +88,16 @@ kine_fun_correct_pre_ca = dyna_2_kine_nominal(my_gp_correct_fun_ca, Nx, Nu)
 """
 kine_fun_correct_rk4 = my_rk4_fun(kine_fun_correct_pre_ca, dt, 2 * Nx, Nu)
 # 真实模型扩展+离散化
-ode_real_ca = get_ode_ca_distrub(ode_real_distrub_propeller, x_distrub, y_distrub, Nx + 1, Nu)
-kine_real_ca = dyna_2_kine_real(ode_real_ca, 2 * Nx, Nu)
+ode_real_ca = get_ode_ca_distrub_z(z_real_distrub, z_distrub, Nx, Nu)
+kine_real_ca = dyna_2_kine_real_z(ode_real_ca, 2 * Nx, Nu)
 kine_real_rk4 = my_rk4_fun_distrub(kine_real_ca, dt, 2 * Nx, Nu)
 # 模型准确但无干扰
-ode_real_no_dis_ca = get_ode_ca(ode_real_propeller, Nx, Nu)
-kine_real_no_dis_ca = dyna_2_kine_nominal(ode_real_no_dis_ca, Nx, Nu)
+ode_real_no_dis_ca = get_ode_ca(z_real, Nx, Nu)
+kine_real_no_dis_ca = dyna_2_kine(ode_real_no_dis_ca, Nx, Nu)
 kine_real_no_dis_rk4 = my_rk4_fun(kine_real_no_dis_ca, dt, 2 * Nx, Nu)
 """这部分代码是为了验证离散后预测模型的准确性，方法是同样将真实模型离散化，得到真实状态下一时刻的结果，并且与预测结果对比，验证效果还行,之后可以删去"""
 # 名义模型扩展+离散化
-ode_nominal_ca = get_ode_ca(ode_nominal_propeller, Nx, Nu)
-kine_nominal_ca = dyna_2_kine_nominal(ode_nominal_ca, Nx, Nu)
+kine_nominal_ca = dyna_2_kine(ode_nominal_ca, Nx, Nu)
 kine_nominal_rk4 = my_rk4_fun(kine_nominal_ca, dt, 2 * Nx, Nu)
 
 """随后应该根据矫正过的模型进行预测控制，可以使用名义模型进行对比
@@ -110,24 +106,26 @@ kine_nominal_rk4 = my_rk4_fun(kine_nominal_ca, dt, 2 * Nx, Nu)
 Nx = 2 * Nx
 N_predict = 5 # 预测布长
 # 状态约束（此处的位置约束重定义，速度约束与上文保持相同
-state_l = [-np.inf, -np.inf, -np.inf, -4., -4.0, -np.pi / 2] 
-state_u = [np.inf, np.inf, np.inf, 4., 4.0, np.pi / 2] 
+state_l = [-np.inf, -1.0] 
+state_u = [np.inf, 1.0] 
 control_l = ulb  
 control_u = uub   
 
 Q = np.eye(Nx)  * 1e-2       # 状态惩罚矩阵
 Q[0,0] = 10
-Q[1,1] = 10
-Q[2,2] = 0.1
+Q[1,1] = 0.1
 Q_end = 5 * np.eye(Nx)     # 终端惩罚矩阵
 R = np.zeros((Nu, Nu))     # 控制量惩罚矩阵
 # 复制粘贴用： kine_fun_correct_rk4  kine_nominal_rk4 kine_real_no_dis_rk4
-solver = get_MPC_solver(kine_fun_correct_rk4, Nx, Nu, N_predict, Q, Q_end, R)
+solver = get_MPC_solver(kine_nominal_rk4, Nx, Nu, N_predict, Q, Q_end, R)
 
 lbx = [] # 最低约束条件(nlp问题的求解变量，该问题中为N_predict的控制输出)
 ubx = [] # 最高约束条件
 lbg = [] # 等式最低约束条件(nlp问题的等式，该问题中为下一时刻状态与此时刻的状态与控制量)
 ubg = [] # 等式最高约束条件
+# 初始状态
+x_init_list = [0.0]
+x_init = np.array(x_init_list).reshape(-1, 1) # 每一步的状态（未开始仿真前存储初始状态）
 for _ in range(N_predict):
     lbx.append(control_l)
 
@@ -139,18 +137,16 @@ lbg = np.array(lbg).reshape(-1, 1)
 ubg = np.array(ubg).reshape(-1, 1)
 lbx = np.array(lbx).reshape(-1, 1)
 ubx = np.array(ubx).reshape(-1, 1)
-# print(lbg, ubg)
+
 # 仿真条件和相关变量
 t0 = 0.0 # 仿真时间
-x_init_list = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+x_init_list = [0.0, 0.0]
 
-u_init_list = [0.0, 0.0, 0.0, 0.0] * N_predict
-# x_init = np.array([0.0, 0.0, 0.0, math.pi / 5 * 2, 0.0, math.pi / 5]).reshape(-1, 1) # 每一步的状态（未开始仿真前存储初始状态）
+u_init_list = [0.0] * N_predict
 x_init = np.array(x_init_list).reshape(-1, 1) # 每一步的状态（未开始仿真前存储初始状态）
 u_init = np.array(u_init_list).reshape(-1, Nu)    # nlp问题求解的初值，求解器可以在此基础上优化至最优值
-state_ref = get_mpc_parameter(x_fun, y_fun, yaw_fun, vx_fun, vy_fun, theta_fun, dt, t0, N_predict)
+state_ref = get_mpc_parameter_z(z_fun, vz_fun, dt, t0, N_predict)
 state_all_ref = state_ref[:, 0].reshape(-1, 1)
-# print(state_ref)
 
 x_predict = [] # 存储预测状态
 u_c = [] # 存储控制全部计算后的控制指令
@@ -158,11 +154,13 @@ t_c = [0.0] # 保存时间
 x_real = []  # 存储真实状态
 sim_time = 10.0 # 仿真时长
 index_t = [] # 存储时间戳，以便计算每一步求解的时间
-
+t0 = 0.0
 ## 开始仿真
 mpciter = 0 # 迭代计数器
 start_time = time.time() # 获取开始仿真时间
+
 ### 开始仿真
+mpciter = 0 # 迭代计数器
 while(mpciter-sim_time / dt <0.0 ): 
     # 初始化优化参数
     c_p = np.concatenate((x_init, state_ref), axis = 1).T.reshape(-1, 1)
@@ -183,7 +181,7 @@ while(mpciter-sim_time / dt <0.0 ):
     # 更新下一时刻状态
     u_c.append(u_this)
     t0 += dt
-    state_ref = get_mpc_parameter(x_fun, y_fun, yaw_fun, vx_fun, vy_fun, theta_fun, dt, t0, N_predict)
+    state_ref = get_mpc_parameter_z(z_fun, vz_fun, dt, t0, N_predict)
     state_all_ref = np.concatenate((state_all_ref,state_ref[:, 0].reshape(-1,1)),axis=1)
 
     state_next_predict = kine_nominal_rk4(x_init, u_this)
@@ -202,24 +200,19 @@ a =np.array([x_init_list])
 x_real_np = np.concatenate((a,x_real_np),axis=0)
 x_predict_np = np.array(x_predict)[:,:,0]
 # 计算误差及相关指标
-error_x_axis = x_real_np[:, 0] - state_all_ref[0, :].T
-error_y_axis = x_real_np[:, 1] - state_all_ref[1, :].T
-error_distance = error_x_axis ** 2 + error_y_axis ** 2
+error_z_axis = x_real_np[:, 0] - state_all_ref[0, :].T
+error_distance = error_z_axis ** 2
 error_distance_max = math.sqrt(np.max(error_distance))
-mse = np.sum(error_distance) / len(error_x_axis)
+mse = np.sum(error_distance) / len(error_z_axis)
 rmse = math.sqrt(mse)
-# 保存数据
-all_data = {'s_real':x_real_np, 'ref': state_all_ref.T, 't' : t_c, 'u' : u_c ,'mse' : mse, 'rmse' : rmse, 'ME' : error_distance_max}
-io.savemat('data/lemniscate/Tv_dis_with_ero/Offline-GP.mat', all_data)
+print(rmse, error_distance_max)
 
-# print(rmse, error_distance_max)
-# print(np.size(x_real_np, 0), np.size(tc))
+z_data = {'s_real':x_real_np, 'ref': state_all_ref.T, 't' : t_c, 'u' : u_c ,'mse' : mse, 'rmse' : rmse, 'ME' : error_distance_max}
+# 拷贝用 Nominal  Offline-GP 
+io.savemat('data/height/Con_dis/Nominal.mat', z_data)
+# print(x_real_np)
 # print(mpciter)
-plt.figure('fig1')
-plt.plot(x_real_np[:, 0], x_real_np[:, 1])
-# plt.scatter(x_real_np[:, 0], x_real_np[:, 1], s= 2, c='r')
-plt.scatter(state_all_ref[0, :], state_all_ref[1, :], s= 2, c='r')
 plt.figure('fig2')
-plt.plot(tc, x_real_np[:, 0])
-plt.scatter(tc, state_all_ref[0, :].T, s= 2, c='r')
+plt.plot(tc, x_real_np[:, 0]-state_all_ref[0, :].T)
+# plt.scatter(tc, state_all_ref[0, :].T, s= 2, c='r')
 plt.show()

@@ -16,6 +16,8 @@ import math
 import casadi as ca
 import matplotlib.pyplot as plt
 import time
+from scipy import io
+
 """PID控制案例"""
 dt = .05                    # Sampling time
 Nx = 3                      # Number of states
@@ -47,7 +49,7 @@ x_init = np.array(x_init_list).reshape(-1, 1) # 每一步的状态（未开始�
 
 x_predict = [] # 存储预测状态
 u_c = [] # 存储控制全部计算后的控制指令
-t_c = [] # 保存时间
+t_c = [0.0] # 保存时间
 x_real = []  # 存储真实状态
 sim_time = 10.0 # 仿真时长
 index_t = [] # 存储时间戳，以便计算每一步求解的时间
@@ -79,9 +81,12 @@ while(mpciter-sim_time / dt <0.0 ):
     u_this[3] = max(min(-add1 - add2 + add3, uub), ulb)
     # u_this[1] = 0
     print(x_init)
+    u = np.array([u_this])
+    u_c.append(u)
     # print(u_this)
     # 更新下一时刻状态
     t0 += dt
+    t_c.append(t0)
     state_ref = get_mpc_parameter(x_fun, y_fun, yaw_fun, vx_fun, vy_fun, theta_fun, t0, t0, 0)
     state_all_ref = np.concatenate((state_all_ref,state_ref[:, 0].reshape(-1,1)),axis=1)
 
@@ -106,6 +111,9 @@ error_distance_max = math.sqrt(np.max(error_distance))
 mse = np.sum(error_distance) / len(error_x_axis)
 rmse = math.sqrt(mse)
 print(rmse, error_distance_max)
+
+all_data = {'s_real':x_real_np, 'ref': state_all_ref.T, 't' : t_c, 'u' : u_c ,'mse' : mse, 'rmse' : rmse, 'ME' : error_distance_max}
+io.savemat('data/lemniscate/Tv_dis_with_ero/PID.mat', all_data)
 # print(x_real_np)
 # print(mpciter)
 plt.figure()

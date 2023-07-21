@@ -210,3 +210,38 @@ def ode_error_distrub_propeller(x, u, x_dis, y_dis, t):
             (((u[0] + u[3]) * l - (u[1] + u[2]) * l) + (Xu_dot - Yv_dot) * x[1] * x[2] - Nr * x[3] - Nrr * ca.fabs(x[3]) * x[3]) / (Iz + Nr_dot) - ((u[0] + u[3]) * l - (u[1] + u[2]) * l) / Iz,
     ]
     return dxdt
+
+################################################################     深度控制模型    ##########################
+def z_nominal(x, u):
+    """深度的名义动力学模型"""
+    dxdt = [
+            u[0] / m,
+    ]
+    return  dxdt
+
+def z_real(x, u):
+    """深度的真实动力学模型"""
+    dxdt = [
+            (u[0] - Zw * x[0] - Zww * ca.fabs(x[0]) * x[0]) / (m + Zw_dot),
+    ]
+    return  dxdt
+
+def z_error(x, u):
+    """深度的误差动力学模型"""
+    dxdt = [
+            (u[0] - Zw * x[0] - Zww * ca.fabs(x[0]) * x[0]) / (m + Zw_dot) - u[0] / m,
+    ]
+    return dxdt
+
+def z_real_distrub(x, u, z_dis, t):
+    """带干扰深度的误差动力学模型"""
+    dxdt = [
+            (u[0] - Zw * x[0] - Zww * ca.fabs(x[0]) * x[0] + z_dis(t)) / (m + Zw_dot),
+    ]
+    return dxdt
+
+def z_error_distrub(x, u, z_dis, t):
+    dxdt = [
+            (u[0] - Zw * x[0] - Zww * ca.fabs(x[0]) * x[0] + z_dis(t)) / (m + Zw_dot) - u[0] / m,
+    ]
+    return dxdt

@@ -15,6 +15,7 @@ import math
 import casadi as ca
 import matplotlib.pyplot as plt
 import time
+from scipy import io
 
 """
 """
@@ -97,7 +98,6 @@ t_interval = dt / N_sim_dis_time
 kine_real_rk4_sim = my_rk4_fun_distrub(kine_real_ca, dt / N_sim_dis_time, 2 * Nx, Nu)
 """这部分代码是为了验证离散后预测模型的准确性，方法是同样将真实模型离散化，得到真实状态下一时刻的结果，并且与预测结果对比，验证效果还行,之后可以删去"""
 # 名义模型扩展+离散化
-ode_nominal_ca = get_ode_ca(ode_nominal_propeller, Nx, Nu)
 kine_nominal_ca = dyna_2_kine_nominal(ode_nominal_ca, Nx, Nu)
 kine_nominal_rk4 = my_rk4_fun(kine_nominal_ca, dt, 2 * Nx, Nu)
 
@@ -151,7 +151,7 @@ state_all_ref = state_ref[:, 0].reshape(-1, 1)
 
 x_predict = [] # 存储预测状态
 u_c = [] # 存储控制全部计算后的控制指令
-t_c = [] # 保存时间
+t_c = [0.0] # 保存时间
 x_real = []  # 存储真实状态
 sim_time = 10.0 # 仿真时长
 index_t = [] # 存储时间戳，以便计算每一步求解的时间
@@ -172,7 +172,7 @@ while(mpciter-sim_time / dt <0.0 ):
     # 获得最优控制结果u
     u_sol = ca.reshape(res['x'], Nu, N_predict).T # 将其恢复U的形状定义
     u_this = u_sol[0, :] # 仅将第一步控制作为真实控制输出
-
+    u_c.append(u_this)
 
     # gp参数的更新，每次更新1个输入，1次更新一次求解器
     # print(u_this.reshape((1, -1)))
@@ -220,7 +220,7 @@ while(mpciter-sim_time / dt <0.0 ):
     state_next_predict = kine_nominal_rk4(x_init, u_this)
     state_next_real = kine_real_rk4(x_init, u_this, t0)
     # print(state_next_real)
-
+    t_c.append(t0)
     x_predict.append(state_next_predict)
     x_real.append(state_next_real)
 
@@ -240,6 +240,10 @@ error_distance = error_x_axis ** 2 + error_y_axis ** 2
 error_distance_max = math.sqrt(np.max(error_distance))
 mse = np.sum(error_distance) / len(error_x_axis)
 rmse = math.sqrt(mse)
+
+all_data = {'s_real':x_real_np, 'ref': state_all_ref.T, 't' : t_c, 'u' : u_c ,'mse' : mse, 'rmse' : rmse, 'ME' : error_distance_max}
+io.savemat('data/lemniscate/Tv_dis_with_ero/Online-GP.mat', all_data)
+
 print(rmse, error_distance_max)
 # print(error_x_axis, error_y_axis)
 # print(x_real_np)

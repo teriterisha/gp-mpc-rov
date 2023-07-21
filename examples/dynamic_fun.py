@@ -19,13 +19,26 @@ def get_ode_ca_distrub(ode, x_dis, y_dis, Nx, Nu):
     ode_ca = ca.Function("ode_ca", [X, U, T], [ca.vertcat(*ode(X, U, x_dis, y_dis, T))])
     return ode_ca 
 
+def get_ode_ca_distrub_z(ode, z_dis, Nx, Nu):
+    """将list形式的ode表达式构建成casadi表达式
+    """
+    X = ca.SX.sym('x',Nx)
+    U = ca.SX.sym('u',Nu)
+    T = ca.SX.sym('t')
+    ode_ca = ca.Function("ode_ca", [X, U, T], [ca.vertcat(*ode(X, U, z_dis, T))])
+    return ode_ca 
+
 def x_distrub(t):
     return 75 * ca.sin(math.pi * t)
-    # return 0
+    # return 40
 
 def y_distrub(t):
     return 75 * ca.cos(math.pi * t)
-    # return 0
+    # return 40
+
+def z_distrub(t):
+    # return 50 * ca.sin(math.pi * t)
+    return 40
 
 def my_rk4_fun(ode, dt, Nx, Nu):
     """ Create discrete RK4 model """
@@ -58,6 +71,7 @@ def my_rk4_fun_distrub(ode, dt, Nx, Nu):
     return rk4
 
 ###################################################################三自由度###################################################
+
 def dyna_2_kine_nominal(ode_dyna, Nx, Nu):
     """此函数的目的是为了将动力学方程扩展为运动学方程，目前的方法是将状态量扩展为位置+速度，此函数目前仅仅为水平面三自由度运动提供转换(不考虑干扰)
     """
@@ -123,19 +137,47 @@ def dyna_2_kine_real_4(ode_dyna, Nx, Nu):
     # print(Kine_fun_ca)
     return Kine_fun_ca
 
+###################################################################深度控制###################################################
+def dyna_2_kine(ode_dyna, Nx, Nu):
+    """此函数的目的是为了将动力学方程扩展为运动学方程，目前的方法是将状态量扩展为位置+速度，位置微分直接定义为速度
+    """
+    x_extern = ca.SX.sym('x_extern', 2 * Nx)
+    dx_extern = ca.SX.sym('dx_extern', 2 * Nx)
+    U = ca.SX.sym('u',Nu)
+    dx_extern[:Nx] = x_extern[Nx:]
+    dx_extern[Nx:] = ode_dyna(x_extern[Nx:], U)
+    Kine_fun_ca = ca.Function("kine_fun_ca", [x_extern, U], [dx_extern])
+    # print(Kine_fun_ca)
+    return Kine_fun_ca
+
+def dyna_2_kine_real_z(ode_dyna, Nx, Nu):
+    """此函数的目的是为了将动力学方程扩展为运动学方程，目前的方法是将状态量扩展为位置+速度，此函数目前仅仅为水平面三自由度运动提供转换(考虑干扰，与ode_real_distrub配合使用)
+    已完成
+    """
+    x_extern = ca.SX.sym('x_extern', Nx)
+    dx_extern = ca.SX.sym('dx_extern', Nx)
+    U = ca.SX.sym('u',Nu)
+    T = ca.SX.sym('t')
+
+    dx_extern[:1] = x_extern[1:]
+    dx_extern[1:] = ode_dyna(x_extern[1:], U, T)
+    Kine_fun_ca = ca.Function("kine_fun_ca", [x_extern, U, T], [dx_extern])
+    # print(Kine_fun_ca)
+    return Kine_fun_ca
+
 ###################################################################轨迹生成###################################################
 def x_fun(t):
     """定义参考轨迹，目前为圆形，原点在圆心，半径为2,10s仿真时间，运行一圈结束"""
-    # return math.sin(math.pi * t / 5) * 3  #圆
+    # return math.sin(math.pi * t / 5) * 2  #圆
     # return 0.5 * t / 10 * math.sin(math.pi * t / 5) # 放大圆
     # if t < 5:                                    #L转向
     #     return 1.5 * t
     # return 7.5
-    return  1.5 * math.cos(math.pi * t / 5) / 1.0  - 0                   #8字形
+    return  1.5 * math.cos(math.pi * t / 5) / 1.0  - 0.0                   #8字形
     # return 0.5 * t                                   #直线
 
 def y_fun(t):
-    # return -math.cos(math.pi * t / 5) * 3 + 3 #圆
+    # return -math.cos(math.pi * t / 5) * 2 + 2 #圆
     # return 0.5 * t / 10 * math.cos(math.pi * t / 5)  # 放大圆
     # if t < 5:                                    #L转向
     #     return 0.0
@@ -146,7 +188,12 @@ def y_fun(t):
 def z_fun(t):
     """暂定z轴不动"""
     # return 0.0
-    return 0.15 * t
+    # if t < 5:                                    #L转向
+    #     return 0.25 * t
+    # return 0.75 * t - 2.5
+    # return 0.5 * t + 0.5
+    return 0.5 * t
+    # return 0.5 * math.sin(math.pi *t / 5)
 
 def yaw_fun(t):
     # return math.pi * t / 5 #圆 放大圆
@@ -156,7 +203,7 @@ def yaw_fun(t):
     return 0                   #8字形
 
 def vx_fun(t):
-    # return math.pi / 5 * 3 #圆
+    # return math.pi / 5 * 2 #圆
     # return 0.5 * t / 10 * math.pi / 5 # 放大圆
     # return 1.5                    #L转向
     return - math.sin(math.pi * t / 5) * 1.5 * math.pi / 5    #8字形
@@ -169,7 +216,11 @@ def vy_fun(t):
 
 def vz_fun(t):
     # return 0.0
-    return 0.15
+    # if t < 5:                                    #L转向
+    #     return 0.25
+    # return 0.75
+    return 0.5
+    # return math.sin(math.pi * t / 5) / 10 
 
 def theta_fun(t):
     # return math.pi / 5 # 圆
@@ -181,6 +232,14 @@ def get_mpc_parameter(x_fun, y_fun, yaw_fun, vx_fun, vy_fun, theta_fun, dt, t, N
     state_ref = np.empty((6, N_predict + 1))
     for i in range(N_predict + 1):
         state_ref[:, i] = np.array([x_fun(t + dt * i), y_fun(t + dt * i), yaw_fun(t + dt * i), vx_fun(t + dt * i), vy_fun(t + dt * i), theta_fun(t + dt * i)])
+    return state_ref
+
+def get_mpc_parameter_z(z_fun, vz_fun, dt, t, N_predict):
+    """得到参考轨迹（深度）
+    """
+    state_ref = np.empty((2, N_predict + 1))
+    for i in range(N_predict + 1):
+        state_ref[:, i] = np.array([z_fun(t + dt * i), vz_fun(t + dt * i)])
     return state_ref
 
 def get_mpc_parameter_4(x_fun, y_fun, z_fun, yaw_fun, vx_fun, vy_fun, vz_fun ,theta_fun, dt, t, N_predict):
