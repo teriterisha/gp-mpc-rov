@@ -173,7 +173,7 @@ def x_fun(t):
     # if t < 5:                                    #L转向
     #     return 1.5 * t
     # return 7.5
-    return  1.5 * math.cos(math.pi * t / 5) / 1.0  - 0.0                   #8字形
+    return  1.5 * math.cos(math.pi * t / 5) / 1.0  - 1.5                   #8字形
     # return 0.5 * t                                   #直线
 
 def y_fun(t):
@@ -309,8 +309,5 @@ def get_acc(kine_fun, rk4_fun, dt, state_now, control_now):
 
 def word2body(v, yaw):
     """将世界坐标系速度换算到本体坐标系"""
-    v_body = [0., 0., 0.]
-    v_body[0] = math.cos(yaw) * v[0] + math.sin(yaw) * v[1]
-    v_body[1] = math.cos(yaw) * v[1] - math.sin(yaw) * v[0]
-    v_body[2] = v[2]
-    return v_body
+    v[0], v[1] = math.cos(yaw) * v[0] + math.sin(yaw) * v[1], math.cos(yaw) * v[1] - math.sin(yaw) * v[0]
+    return v

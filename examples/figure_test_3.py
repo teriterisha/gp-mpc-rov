@@ -4,13 +4,13 @@ import numpy as np
 # 导入数据
 # 拷贝用：data/lemniscate/Tv_dis_with_ero/   data/lemniscate/Tv_dis_No_ero/  data/lemniscate/No_dis_No_ero  data/lemniscate/Con_dis_No_ero  
 # data/L  data/circle/r=2/  data/circle/r=2.5/  data/circle/r=3/
-input_file = 'data/circle/r=3/'
+input_file = 'data/lemniscate/Tv_dis_with_ero/'
 all_data_PID = io.loadmat(input_file + 'PID.mat')
 all_data_Nominal = io.loadmat(input_file + 'Nominal.mat')
 all_data_OFF = io.loadmat(input_file + 'Offline-GP.mat')
 all_data_ON = io.loadmat(input_file + 'Online-GP.mat')
 
-input_file_2 = 'data/height/No_dis/0.75/'
+input_file_2 = 'data/height/Tv_error/'
 Z_data_PID = io.loadmat(input_file_2 + 'PID.mat')
 Z_data_Nominal = io.loadmat(input_file_2 + 'Nominal.mat')
 Z_data_OFF = io.loadmat(input_file_2 + 'Offline-GP.mat')
@@ -41,7 +41,7 @@ plt.figure('fig1', figsize=(15,15))
 plt.axis('off')
 # 参考轨迹
 # plt.plot(real_PID[:, 0], real_PID[:, 1], linestyle = '-', c='r', label = 'ref')
-fontsize = 15
+fontsize = 20
 # 真实轨迹
 ax = plt.axes(projection='3d')
 ax.plot3D(real_PID[:, 0], real_PID[:, 1], realZ_PID[:, 0], linestyle = '-', label='PID')
@@ -71,12 +71,13 @@ plt.legend(loc='upper left', fontsize=fontsize)#绘制曲线图例，信息来�
 # 各状态对比
 y_label = ['x error(m)', 'y error(m)', 'yaw error(rad)']
 fig, ax = plt.subplots(4, 1, figsize=(25, 10)) 
+plt.subplots_adjust(hspace=0.5)
 for i in range(3):
     plt.subplot(4, 1, i + 1)
     plt.xlim(0, 10.)
     plt.xticks(np.arange(0., 10.1, 0.5), fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
-    plt.xlabel("time (s)", fontsize=fontsize)
+    # plt.xlabel("time (s)", fontsize=fontsize)
     plt.ylabel(y_label[i], fontsize=fontsize)
     # plt.plot(t[0], state_all_ref[:, i],linestyle = ':', c='r', label = 'ref')
     plt.plot(t[0], real_PID[:, i] - state_all_ref[:, i], linestyle = '-', c='k', label='PID')
@@ -99,5 +100,5 @@ plt.plot(t[0], realZ_ON[:, i] - Z_ref[:, i], c='b', linestyle = ':', label='Onli
 
 lines, labels = fig.axes[-1].get_legend_handles_labels()
     
-fig.legend(lines, labels, loc = 'upper right', fontsize=fontsize)
+fig.legend(lines, labels, loc = 'upper right', ncol = 2,fontsize=fontsize)
 plt.show()
